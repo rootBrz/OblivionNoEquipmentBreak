@@ -1,15 +1,24 @@
 cmake_minimum_required(VERSION 3.10)
-project(OblivionEquipmentNoBreak C CXX)
+project(OblivionEquipmentNoBreak C CXX ASM)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 
-set(VERSION_MAJOR 1)
-set(VERSION_MINOR 2)
+set(VERSION_MAJOR 2)
+set(VERSION_MINOR 0)
 set(VERSION_PATCH 0)
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+
+# MinHook
+set(MINHOOK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/minhook)
+file(GLOB MINHOOK_SOURCES
+    "${MINHOOK_DIR}/src/*.c"
+    "${MINHOOK_DIR}/src/hde/*.c"
+)
+add_library(minhook STATIC ${MINHOOK_SOURCES})
+target_include_directories(minhook PUBLIC "${MINHOOK_DIR}/include")
 
 # DLL Details
 SET(CMAKE_RC_COMPILER "windres")
@@ -22,7 +31,7 @@ add_custom_command(OUTPUT ${RES_FILE}
 )
 set(VERSION_RESOURCE ${RES_FILE})
 
-file(GLOB SOURCE_FILES *.cpp *.h)
+file(GLOB SOURCE_FILES *.cpp *.h *.s)
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
  
 # DLL Details
@@ -33,6 +42,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 target_compile_options(${PROJECT_NAME} PRIVATE -O3 -flto -ffunction-sections -fdata-sections)
 target_link_options(${PROJECT_NAME} PRIVATE -static -Wl,--gc-sections)
+target_link_libraries(${PROJECT_NAME} PRIVATE minhook)
 
 set(OBR_PATH $ENV{OBR_PATH})
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
