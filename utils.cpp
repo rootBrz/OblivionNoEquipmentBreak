@@ -1,18 +1,34 @@
 #include "utils.h"
-#include "main.hpp"
+#include "main.h"
 #include <cstdarg>
 #include <cstdio>
 #include <libloaderapi.h>
-#include <minwindef.h>
 #include <processthreadsapi.h>
 #include <psapi.h>
+
+// Get DLL Path
+char *GetDllCurPath()
+{
+  char *path = (char *)malloc(MAX_PATH);
+  DWORD len = GetModuleFileName(DLL_HANDLE, path, MAX_PATH);
+  for (DWORD i = len; i > 0; --i)
+    if (path[i - 1] == '\\' || path[i - 1] == '/')
+    {
+      path[i] = '\0';
+      break;
+    }
+  snprintf(path + strlen(path), MAX_PATH - strlen(path), "\\%s", INI_NAME);
+  return path;
+}
 
 // Return float based on ini setting
 float ReadFloatIniSetting(const char *setting)
 {
-  FILE *iniSettings = fopen(INI_NAME, "r");
+  char *path = GetDllCurPath();
+
+  FILE *iniSettings = fopen(OBSE_MESSAGE ? path : INI_NAME, "r");
   if (!iniSettings)
-    return 0.0f;
+    return free(path), 0.0f;
 
   char line[256];
   while (fgets(line, sizeof(line), iniSettings))
@@ -22,11 +38,11 @@ float ReadFloatIniSetting(const char *setting)
 
     char *equalSign = strchr(line, '=');
     if (equalSign)
-      return strtof(equalSign + 1, NULL);
+      return free(path), strtof(equalSign + 1, NULL);
   }
 
   fclose(iniSettings);
-
+  free(path);
   return 0.0f;
 }
 

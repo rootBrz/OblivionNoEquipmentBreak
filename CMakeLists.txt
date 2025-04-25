@@ -3,7 +3,6 @@ project(OblivionEquipmentNoBreak C CXX ASM)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 
 set(VERSION_MAJOR 2)
@@ -31,6 +30,7 @@ add_custom_command(OUTPUT ${RES_FILE}
 )
 set(VERSION_RESOURCE ${RES_FILE})
 
+# Source Files
 file(GLOB SOURCE_FILES *.cpp *.h *.s)
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
  
