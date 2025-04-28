@@ -11,9 +11,9 @@ changeDurabilityDamage:
     movss %xmm8, %xmm0
     call durabilityDamageAdj
     movss %xmm0, %xmm8
-    subss %xmm8, %xmm9
     movaps (%rsp), %xmm0
     add $16, %rsp
     pop %rax
     popfq
     jmp *originalFunc(%rip)
+ 
