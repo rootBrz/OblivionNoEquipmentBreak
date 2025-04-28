@@ -33,7 +33,7 @@ float ReadFloatIniSetting(const char *setting)
   char line[256];
   while (fgets(line, sizeof(line), iniSettings))
   {
-    if (strncmp(line, setting, sizeof(setting) - 1))
+    if (strncmp(line, setting, strlen(setting) - 1))
       continue;
 
     char *equalSign = strchr(line, '=');
