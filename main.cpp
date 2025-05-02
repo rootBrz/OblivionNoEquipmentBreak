@@ -1,62 +1,73 @@
 #include "main.h"
 #include "MinHook.h"
 #include "utils.h"
+#include <consoleapi.h>
+#include <cstdio>
 #include <minwindef.h>
 
-extern "C"
+void *oFunc = nullptr;
+static void Hook(void) __attribute__((naked));
+static void Hook(void)
 {
-  void *originalFunc = nullptr;
-  void changeDurabilityDamage();
-  float durabilityDamageAdj(float value)
-  {
-    return value * DURABILITY_MULTIPLIER;
-  }
-};
+  __asm__ volatile(
+      ".intel_syntax noprefix\n\t"
+      "mulss  xmm8, DWORD PTR [rip + DURABILITY_MULTIPLIER]\n\t"
+      "jmp   QWORD PTR [rip + oFunc]\n\t"
+      ".att_syntax prefix\n\t"
+      :
+      :
+      : "cc", "memory");
+}
 
 DWORD WINAPI InitThread(LPVOID lpParam)
 {
-  // If OBSE initialized, do not run from PROCESS_ATTACH
-  if (lpParam && OBSE_MESSAGE)
-    return true;
+  Sleep(5000);
 
-  constexpr char pattern[]{"F3 0F 10 0D ?? ?? ?? ?? 44 0F 28 C8 F3 45 0F 5C C8 41 0F 2F C9"};
-  uintptr_t absAddr{FindPattern(pattern, sizeof(pattern) / 3) + 0xC};
+  FILE *log = fopen(LOG_NAME, "w");
 
-  SaveAddressToFile(absAddr);
+  fprintf(log, "Logging started.\n");
   DURABILITY_MULTIPLIER = ReadFloatIniSetting("DurabilityMultiplier");
+  fprintf(log, "Durability multiplier: %f\n", DURABILITY_MULTIPLIER);
 
-  LogToFile("Durability multiplier: %f", DURABILITY_MULTIPLIER);
-  MH_Initialize();
-  MH_CreateHook((LPVOID)absAddr, (LPVOID)changeDurabilityDamage, (LPVOID *)&originalFunc);
-  MH_EnableHook((LPVOID)absAddr);
+  uintptr_t absAddr = FindPattern("F3 45 0F 5C C8 41 0F 2F C9");
 
-  return true;
+  if (absAddr != 0)
+  {
+    fprintf(log, "Found address: 0x%p\n", (void *)absAddr);
+
+    MH_Initialize();
+    MH_CreateHook((LPVOID)absAddr, (LPVOID)Hook, (LPVOID *)&oFunc);
+    if (MH_EnableHook((LPVOID)absAddr) == MH_OK)
+      fprintf(log, "SUCCESS: Hook successfully enabled. \n");
+    else
+      fprintf(log, "ERROR: Failed to enable hook. \n");
+  }
+  else
+    fprintf(log, "ERROR: Pattern not found! Hook can't be applied.\n");
+
+  fclose(log);
+
+  return TRUE;
 }
 
 // OBSE
-void MessageHandler(OBSEMessagingInterface::Message *msg)
-{
-  if (msg->type == OBSEMessagingInterface::kMessage_PostPostLoad)
-    InitThread(nullptr);
-}
 extern "C"
 {
-  __declspec(dllexport) OBSEPluginVersionData OBSEPlugin_Version =
+  OBSEPluginVersionData OBSEPlugin_Version =
       {
           OBSEPluginVersionData::kVersion,
 
-          20,
+          22,
           "Configurable Item Degradation",
           "rootBrz",
 
           OBSEPluginVersionData::kAddressIndependence_Signatures,
           OBSEPluginVersionData::kStructureIndependence_NoStructs};
 
-  __declspec(dllexport) bool OBSEPlugin_Load(const OBSEInterface *obse)
+  bool OBSEPlugin_Load(const OBSEInterface *obse)
   {
     PLUGIN_HANDLE = obse->GetPluginHandle();
     OBSE_MESSAGE = (OBSEMessagingInterface *)obse->QueryInterface(kInterface_Messaging);
-    OBSE_MESSAGE->RegisterListener(PLUGIN_HANDLE, "OBSE", MessageHandler);
 
     return true;
   }

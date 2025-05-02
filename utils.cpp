@@ -1,15 +1,18 @@
 #include "utils.h"
 #include "main.h"
+#include <cmath>
 #include <cstdarg>
+#include <cstdint>
 #include <cstdio>
 #include <libloaderapi.h>
 #include <processthreadsapi.h>
 #include <psapi.h>
 
-// Get DLL Path
-char *GetDllCurPath()
+// Return float based on ini setting
+float ReadFloatIniSetting(const char *setting)
 {
   char *path = (char *)malloc(MAX_PATH);
+
   DWORD len = GetModuleFileName(DLL_HANDLE, path, MAX_PATH);
   for (DWORD i = len; i > 0; --i)
     if (path[i - 1] == '\\' || path[i - 1] == '/')
@@ -18,93 +21,67 @@ char *GetDllCurPath()
       break;
     }
   snprintf(path + strlen(path), MAX_PATH - strlen(path), "\\%s", INI_NAME);
-  return path;
-}
 
-// Return float based on ini setting
-float ReadFloatIniSetting(const char *setting)
-{
-  char *path = GetDllCurPath();
+  FILE *iniSettings = fopen(path, "r");
+  free(path);
 
-  FILE *iniSettings = fopen(OBSE_MESSAGE ? path : INI_NAME, "r");
   if (!iniSettings)
-    return free(path), 0.0f;
+    return 0.0f;
 
-  char line[256];
+  char line[1024];
   while (fgets(line, sizeof(line), iniSettings))
   {
-    if (strncmp(line, setting, strlen(setting) - 1))
+    if (strncmp(line, setting, strlen(setting)))
       continue;
 
     char *equalSign = strchr(line, '=');
     if (equalSign)
-      return free(path), strtof(equalSign + 1, NULL);
+      return strtof(equalSign + 1, NULL);
   }
 
   fclose(iniSettings);
-  free(path);
   return 0.0f;
 }
 
 // Find memory address based on pattern
-uintptr_t FindPattern(const char *pat, unsigned int size)
+uintptr_t FindPattern(const char *pat)
 {
-  Pattern patternStruct[size];
+  size_t patLen = (strlen(pat) + 1) / 3;
+  unsigned char *patBytes = (unsigned char *)_alloca(patLen);
+  unsigned char *mask = (unsigned char *)_alloca(patLen);
 
-  HMODULE hMod = GetModuleHandle(NULL);
-  unsigned char *base = (unsigned char *)hMod;
-  MODULEINFO modInfo;
-  GetModuleInformation(GetCurrentProcess(), hMod, &modInfo, sizeof(modInfo));
-  size_t imageSize = modInfo.SizeOfImage;
-
-  char idx = 0;
-  while (*pat)
+  for (size_t i = 0; i < patLen; ++i)
   {
-    patternStruct[idx].byte = *pat == '?' ? 0x00 : (unsigned char)strtol(pat, NULL, 16);
-    patternStruct[idx].mask = *pat == '?' ? 0 : 1;
-    pat += 3;
-    idx++;
+    const char *p = pat + i * 3;
+    bool isWildcard = (*p == '?');
+
+    patBytes[i] = isWildcard ? 0x00 : (unsigned char)strtoul(p, nullptr, 16);
+    mask[i] = isWildcard ? 0 : 1;
   }
 
-  for (size_t i = 0; i + size <= imageSize; ++i)
+  HMODULE hMod = GetModuleHandle(NULL);
+  MODULEINFO mi;
+  GetModuleInformation(GetCurrentProcess(), hMod, &mi, sizeof(mi));
+  unsigned char *base = (unsigned char *)hMod;
+  size_t max = mi.SizeOfImage - patLen;
+
+  for (size_t i = 0; i <= max; i++)
   {
-    int patternFound = 1;
-    for (unsigned int j = 0; j < size; ++j)
-      if (patternStruct[j].mask && base[i + j] != patternStruct[j].byte)
+    if (base[i] != patBytes[0])
+      continue;
+
+    bool found = true;
+
+    for (size_t j = 0; j < patLen; j++)
+      if (mask[j] && base[i + j] != patBytes[j])
       {
-        patternFound = 0;
+        found = false;
         break;
       }
 
-    if (patternFound)
-      return (uintptr_t)(base + i);
+    if (found)
+      return (uintptr_t)base + i;
   }
 
   return 0;
-}
-
-// Start logging with writing found address
-void SaveAddressToFile(uintptr_t absAddr)
-{
-  FILE *file = fopen(LOG_NAME, "w");
-  if (file)
-  {
-    fprintf(file, "Found address: 0x%p\n", (void *)absAddr);
-    fclose(file);
-  }
-}
-
-void LogToFile(const char *format, ...)
-{
-  FILE *file = fopen(LOG_NAME, "a");
-  if (file)
-  {
-    va_list args;
-    va_start(args, format);
-
-    vfprintf(file, format, args);
-
-    va_end(args);
-    fclose(file);
-  }
 }

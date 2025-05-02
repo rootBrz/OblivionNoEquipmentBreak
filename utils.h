@@ -8,7 +8,5 @@ typedef struct
   unsigned char mask;
 } Pattern;
 
-uintptr_t FindPattern(const char *pat, unsigned int size);
-void SaveAddressToFile(uintptr_t absAddr);
-void LogToFile(const char *format, ...);
+uintptr_t FindPattern(const char *pat);
 float ReadFloatIniSetting(const char *setting);
