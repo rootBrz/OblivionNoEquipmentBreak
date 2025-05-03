@@ -4,25 +4,29 @@
 #include <consoleapi.h>
 #include <cstdio>
 #include <minwindef.h>
+#include <process.h>
 
+extern "C" float DURABILITY_MULTIPLIER;
+extern "C" void *oFunc;
+
+float DURABILITY_MULTIPLIER = 0.0f;
 void *oFunc = nullptr;
+
 static void Hook(void) __attribute__((naked));
 static void Hook(void)
 {
   __asm__ volatile(
       ".intel_syntax noprefix\n\t"
-      "mulss  xmm8, DWORD PTR [rip + DURABILITY_MULTIPLIER]\n\t"
-      "jmp   QWORD PTR [rip + oFunc]\n\t"
+      "mulss xmm8, DURABILITY_MULTIPLIER[rip]\n\t"
+      "jmp oFunc[rip]\n\t"
       ".att_syntax prefix\n\t"
       :
       :
-      : "cc", "memory");
+      : "xmm8", "memory", "cc");
 }
 
-DWORD WINAPI InitThread(LPVOID lpParam)
+unsigned __stdcall InitThread(void *)
 {
-  Sleep(5000);
-
   FILE *log = fopen(LOG_NAME, "w");
 
   fprintf(log, "Logging started.\n");
@@ -47,22 +51,25 @@ DWORD WINAPI InitThread(LPVOID lpParam)
 
   fclose(log);
 
-  return TRUE;
+  _endthreadex(0);
+  return 0;
 }
 
 // OBSE
 extern "C"
 {
-  OBSEPluginVersionData OBSEPlugin_Version =
-      {
-          OBSEPluginVersionData::kVersion,
-
-          22,
-          "Configurable Item Degradation",
-          "rootBrz",
-
-          OBSEPluginVersionData::kAddressIndependence_Signatures,
-          OBSEPluginVersionData::kStructureIndependence_NoStructs};
+  OBSEPluginVersionData OBSEPlugin_Version{
+      OBSEPluginVersionData::kVersion,
+      23,
+      "Configurable Item Degradation",
+      "rootBrz",
+      OBSEPluginVersionData::kAddressIndependence_Signatures,
+      OBSEPluginVersionData::kStructureIndependence_NoStructs,
+      {},
+      {},
+      {},
+      {},
+      {}};
 
   bool OBSEPlugin_Load(const OBSEInterface *obse)
   {

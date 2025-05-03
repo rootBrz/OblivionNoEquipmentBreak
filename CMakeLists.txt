@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 
 set(VERSION_MAJOR 2)
-set(VERSION_MINOR 2)
+set(VERSION_MINOR 3)
 set(VERSION_PATCH 0)
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
@@ -40,7 +40,7 @@ target_sources(${PROJECT_NAME} PRIVATE ${VERSION_RESOURCE})
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.in ${CMAKE_CURRENT_BINARY_DIR}/version.h @ONLY)
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
-target_compile_options(${PROJECT_NAME} PRIVATE -O3 -flto -ffunction-sections -fdata-sections)
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Werror -Wextra -O3 -flto -ffunction-sections -fdata-sections)
 target_link_options(${PROJECT_NAME} PRIVATE -static -Wl,--gc-sections)
 target_link_libraries(${PROJECT_NAME} PRIVATE minhook)
 
